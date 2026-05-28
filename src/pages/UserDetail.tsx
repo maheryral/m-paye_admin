@@ -7,6 +7,7 @@ import {
   KeyRound,
   LogOut,
   ShieldAlert,
+  MapPin,
 } from 'lucide-react';
 import { usersAdminApi } from '../services/superAdminApi';
 
@@ -233,6 +234,7 @@ export default function UserDetail() {
             <thead>
               <tr>
                 <th>Appareil</th>
+                <th>Localisation</th>
                 <th>IP</th>
                 <th>Dernière activité</th>
                 <th>Statut</th>
@@ -241,36 +243,76 @@ export default function UserDetail() {
             <tbody>
               {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-6 text-ink-muted">
+                  <td colSpan={5} className="text-center py-6 text-ink-muted">
                     Aucune session
                   </td>
                 </tr>
               ) : (
-                sessions.map((s) => (
-                  <tr key={s.token}>
-                    <td>
-                      <div className="text-sm font-semibold">
-                        {s.deviceName || '—'}
-                      </div>
-                      <div className="text-xs text-ink-muted">
-                        {s.deviceType}
-                      </div>
-                    </td>
-                    <td className="text-xs font-mono">{s.ipAddress}</td>
-                    <td className="text-ink-muted text-xs">
-                      {new Date(s.lastActivityAt).toLocaleString('fr-FR')}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          s.isRevoked ? 'badge-danger' : 'badge-success'
-                        }
-                      >
-                        {s.isRevoked ? 'RÉVOQUÉE' : 'ACTIVE'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                sessions.map((s) => {
+                  const dev = s.userDevice;
+                  const detail = [
+                    dev?.os && (dev.osVersion ? `${dev.os} ${dev.osVersion}` : dev.os),
+                    dev?.browser,
+                    dev?.model,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ');
+                  const hasCoords = s.latitude != null && s.longitude != null;
+                  return (
+                    <tr key={s.token}>
+                      <td>
+                        <div className="text-sm font-semibold flex items-center gap-1.5">
+                          {s.deviceName || '—'}
+                          {dev?.isTrusted && (
+                            <span className="badge-success text-[9px]">
+                              fiable
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-ink-muted">
+                          {detail || s.deviceType}
+                        </div>
+                      </td>
+                      <td className="text-xs">
+                        {s.location ? (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin size={11} className="text-brand-300 shrink-0" />
+                            <span className="text-ink-muted">{s.location}</span>
+                            {hasCoords && (
+                              <a
+                                href={`https://www.openstreetmap.org/?mlat=${s.latitude}&mlon=${s.longitude}#map=14/${s.latitude}/${s.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-brand-400 hover:underline"
+                                title="Voir sur la carte"
+                              >
+                                carte
+                              </a>
+                            )}
+                            {s.locationSource === 'gps' && (
+                              <span className="badge-info text-[9px]">GPS</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-ink-dim">—</span>
+                        )}
+                      </td>
+                      <td className="text-xs font-mono">{s.ipAddress}</td>
+                      <td className="text-ink-muted text-xs">
+                        {new Date(s.lastActivityAt).toLocaleString('fr-FR')}
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            s.isRevoked ? 'badge-danger' : 'badge-success'
+                          }
+                        >
+                          {s.isRevoked ? 'RÉVOQUÉE' : 'ACTIVE'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

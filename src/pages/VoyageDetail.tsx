@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { transportApi } from '../services/superAdminApi';
 import SeatMapView from '../components/SeatMapView';
+import RouteMap from '../components/ui/RouteMap';
 
 export default function VoyageDetail() {
   const { id } = useParams<{ id: string }>();
@@ -167,6 +168,29 @@ export default function VoyageDetail() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Itinéraire sur la carte */}
+      <div className="card p-5 mb-4">
+        <div className="text-sm font-bold mb-1 flex items-center gap-2">
+          <Route size={14} className="text-brand-400" /> Itinéraire du trajet
+        </div>
+        <div className="text-xs text-ink-muted mb-3">
+          {voyage.localisationDepart} → {voyage.localisationArrivee}
+        </div>
+        <RouteMap
+          height={380}
+          departure={{
+            lat: voyage.latitudeDepart,
+            lng: voyage.longitudeDepart,
+            label: voyage.localisationDepart,
+          }}
+          arrival={{
+            lat: voyage.latitudeArrivee,
+            lng: voyage.longitudeArrivee,
+            label: voyage.localisationArrivee,
+          }}
+        />
       </div>
 
       {/* Places */}

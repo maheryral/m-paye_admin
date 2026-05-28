@@ -40,6 +40,7 @@ function fmtFullTime(iso: string) {
 export default function Messages() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [queue, setQueue] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,9 +59,9 @@ export default function Messages() {
   const loadList = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await messagingApi.listConversations();
-      // SUPPORT en premier, trié par dernière activité
-      const sorted = [...list].sort((a, b) => {
+      const { queue: q, mine } = await messagingApi.supportQueue();
+      setQueue(q);
+      const sorted = [...mine].sort((a, b) => {
         const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
         const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
         return tb - ta;
@@ -71,6 +72,26 @@ export default function Messages() {
       setLoading(false);
     }
   }, [selectedId]);
+
+  async function claim(id: string) {
+    try {
+      await messagingApi.claim(id);
+      await loadList();
+      setSelectedId(id);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Impossible de prendre cette conversation');
+    }
+  }
+
+  async function closeConv(id: string) {
+    if (!confirm('Clôturer cette conversation ?')) return;
+    try {
+      await messagingApi.close(id);
+      await loadList();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Échec de la clôture');
+    }
+  }
 
   const loadMessages = useCallback(async (id: string) => {
     setLoadingMsgs(true);
@@ -129,6 +150,11 @@ export default function Messages() {
           loadList();
         },
       );
+
+      // Événements support : nouvelle assignation, mise en file, fermeture
+      socket.on('support:assigned', () => loadList());
+      socket.on('support:queued', () => loadList());
+      socket.on('support:closed', () => loadList());
 
       socketRef.current = socket;
     })();
@@ -253,6 +279,41 @@ export default function Messages() {
               />
             </div>
           </div>
+          {/* File d'attente non assignée */}
+          {queue.length > 0 && (
+            <div className="border-b border-bg-border/60 bg-warning-bg/20">
+              <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-warning-500">
+                File d'attente ({queue.length})
+              </div>
+              <ul>
+                {queue.map((c) => (
+                  <li
+                    key={c.id}
+                    className="px-3 py-2 flex items-center gap-2 hover:bg-bg-elevated/40"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-warning-500/20 text-warning-500 flex items-center justify-center shrink-0">
+                      <Headset size={14} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold truncate">
+                        {getTitle(c)}
+                      </div>
+                      <div className="text-[11px] text-ink-dim truncate">
+                        {c.messages?.[0]?.content || getSubtitle(c)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => claim(c.id)}
+                      className="btn btn-sm btn-primary shrink-0"
+                    >
+                      Prendre
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-3 space-y-2">
@@ -296,8 +357,20 @@ export default function Messages() {
                               {fmtTime(c.lastMessageAt)}
                             </div>
                           </div>
-                          <div className="text-[11px] text-ink-dim truncate">
-                            {getSubtitle(c)}
+                          <div className="flex items-center gap-1.5">
+                            {c.status === 'CLOSED' ? (
+                              <span className="badge-info text-[9px]">Fermée</span>
+                            ) : c.status === 'ASSIGNED' ? (
+                              <span className="badge-success text-[9px]">En cours</span>
+                            ) : null}
+                            {c.status === 'CLOSED' && c.rating != null && (
+                              <span className="text-[10px] text-warning-500">
+                                {'★'.repeat(c.rating)}
+                              </span>
+                            )}
+                            <div className="text-[11px] text-ink-dim truncate">
+                              {getSubtitle(c)}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 mt-1">
                             {last && (
@@ -347,9 +420,35 @@ export default function Messages() {
                     {getSubtitle(selected)}
                   </div>
                 </div>
-                <span className="badge-info">
-                  {selected.type === 'SUPPORT' ? 'Support' : 'Privée'}
+                {selected.status === 'CLOSED' && selected.rating != null && (
+                  <span className="text-warning-500 text-sm" title="Note du client">
+                    {'★'.repeat(selected.rating)}
+                    <span className="text-ink-dim">
+                      {'★'.repeat(5 - selected.rating)}
+                    </span>
+                  </span>
+                )}
+                <span
+                  className={
+                    selected.status === 'CLOSED'
+                      ? 'badge-info'
+                      : 'badge-success'
+                  }
+                >
+                  {selected.status === 'CLOSED'
+                    ? 'Fermée'
+                    : selected.status === 'ASSIGNED'
+                      ? 'En cours'
+                      : 'Ouverte'}
                 </span>
+                {selected.type === 'SUPPORT' && selected.status !== 'CLOSED' && (
+                  <button
+                    onClick={() => closeConv(selected.id)}
+                    className="btn btn-sm btn-danger"
+                  >
+                    Clôturer
+                  </button>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-bg-base/30">
@@ -399,28 +498,37 @@ export default function Messages() {
                 <div ref={endRef} />
               </div>
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  send();
-                }}
-                className="border-t border-bg-border/60 p-3 flex gap-2"
-              >
-                <input
-                  className="input flex-1"
-                  placeholder="Tapez votre réponse…"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  disabled={sending}
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !draft.trim()}
-                  className="btn btn-md btn-primary"
+              {selected.status === 'CLOSED' ? (
+                <div className="border-t border-bg-border/60 p-3 text-center text-xs text-ink-dim">
+                  Conversation clôturée
+                  {selected.rating != null
+                    ? ` · noté ${selected.rating}/5 par le client`
+                    : ' · en attente de la note du client'}
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    send();
+                  }}
+                  className="border-t border-bg-border/60 p-3 flex gap-2"
                 >
-                  <Send size={14} /> Envoyer
-                </button>
-              </form>
+                  <input
+                    className="input flex-1"
+                    placeholder="Tapez votre réponse…"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    disabled={sending}
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !draft.trim()}
+                    className="btn btn-md btn-primary"
+                  >
+                    <Send size={14} /> Envoyer
+                  </button>
+                </form>
+              )}
             </>
           )}
         </div>

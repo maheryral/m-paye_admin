@@ -8,6 +8,7 @@ import {
   PauseCircle,
   PlayCircle,
   MapPin,
+  FileText,
 } from 'lucide-react';
 import { merchantsAdminApi } from '../services/superAdminApi';
 
@@ -188,6 +189,124 @@ export default function MerchantDetail() {
           </div>
         </div>
       </div>
+
+      {/* Documents & images envoyés pour devenir marchand */}
+      {(() => {
+        const DOC_LABEL: Record<string, string> = {
+          BUSINESS_REGISTRATION: 'Licence commerciale (RCS)',
+          TAX_CERTIFICATE: 'Justificatif fiscal (NIF/TVA)',
+          ID_DOCUMENT: 'Pièce d’identité du gérant',
+          PROOF_OF_ADDRESS: 'Justificatif de domicile',
+          BANK_STATEMENT: 'Relevé bancaire',
+          OTHER: 'Autre document',
+        };
+        const isImage = (d: any) =>
+          (d.mimeType || '').startsWith('image/') ||
+          /\.(png|jpe?g|webp|gif)$/i.test(d.url || '') ||
+          (d.url || '').startsWith('data:image');
+        const docs: any[] = m.documents ?? [];
+        const hasBranding = m.logoUrl || m.coverUrl;
+        if (docs.length === 0 && !hasBranding) {
+          return (
+            <div className="card p-5 mb-6">
+              <div className="text-sm font-bold mb-1">
+                Documents du marchand
+              </div>
+              <div className="text-sm text-ink-muted">
+                Aucun document ni image fournis.
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="card p-6 mb-6">
+            <div className="text-sm font-bold mb-4 flex items-center gap-2">
+              <FileText size={16} /> Documents & images du marchand
+              <span className="text-ink-dim font-normal">
+                ({docs.length} document{docs.length > 1 ? 's' : ''})
+              </span>
+            </div>
+
+            {/* Logo / Couverture */}
+            {hasBranding && (
+              <div className="flex flex-wrap gap-4 mb-5">
+                {m.logoUrl && (
+                  <a href={m.logoUrl} target="_blank" rel="noreferrer" className="block">
+                    <div className="text-[10px] uppercase tracking-wider text-ink-dim mb-1">
+                      Logo
+                    </div>
+                    <img
+                      src={m.logoUrl}
+                      alt="Logo"
+                      className="w-24 h-24 rounded-xl object-cover border border-bg-border bg-bg-elevated"
+                    />
+                  </a>
+                )}
+                {m.coverUrl && (
+                  <a href={m.coverUrl} target="_blank" rel="noreferrer" className="block flex-1 min-w-[160px]">
+                    <div className="text-[10px] uppercase tracking-wider text-ink-dim mb-1">
+                      Couverture
+                    </div>
+                    <img
+                      src={m.coverUrl}
+                      alt="Couverture"
+                      className="w-full h-24 rounded-xl object-cover border border-bg-border bg-bg-elevated"
+                    />
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Documents */}
+            {docs.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {docs.map((d) => (
+                  <a
+                    key={d.id}
+                    href={d.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="card overflow-hidden group"
+                    title="Ouvrir le document"
+                  >
+                    {isImage(d) ? (
+                      <img
+                        src={d.url}
+                        alt={d.type}
+                        className="w-full h-32 object-cover bg-bg-elevated"
+                      />
+                    ) : (
+                      <div className="w-full h-32 flex flex-col items-center justify-center bg-bg-elevated text-ink-dim gap-1">
+                        <FileText size={28} />
+                        <span className="text-[10px] uppercase">
+                          {(d.fileName || d.url || '').split('.').pop()?.slice(0, 5) || 'FILE'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="px-2 py-2">
+                      <div className="text-xs font-semibold leading-tight">
+                        {DOC_LABEL[d.type] || d.type}
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span
+                          className={
+                            d.verified ? 'badge-success' : 'badge-warning'
+                          }
+                        >
+                          {d.verified ? 'Vérifié' : 'À vérifier'}
+                        </span>
+                        <span className="text-[10px] text-ink-dim">
+                          {new Date(d.uploadedAt).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Stats financières */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

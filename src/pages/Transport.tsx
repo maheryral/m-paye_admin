@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { transportApi } from '../services/superAdminApi';
 import MapPicker from '../components/ui/MapPicker';
+import { SeatPlanEditor } from './SeatLayoutEditor';
 
 type Tab =
   | 'stats'
@@ -172,7 +173,7 @@ function CoopsTab() {
     telephone: '',
     email: '',
     siegeSocial: '',
-    gareRoutiereId: '',
+    gareRoutiereIds: [] as string[],
   });
 
   async function load() {
@@ -188,12 +189,34 @@ function CoopsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
+  function toggleGare(id: string) {
+    setForm((f: any) => {
+      const has = f.gareRoutiereIds.includes(id);
+      return {
+        ...f,
+        gareRoutiereIds: has
+          ? f.gareRoutiereIds.filter((g: string) => g !== id)
+          : [...f.gareRoutiereIds, id],
+      };
+    });
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (form.gareRoutiereIds.length === 0) {
+      alert('Sélectionnez au moins une gare routière');
+      return;
+    }
     try {
       await transportApi.upsertCoop(form);
       setShow(false);
-      setForm({ nom: '', telephone: '', email: '', siegeSocial: '', gareRoutiereId: '' });
+      setForm({
+        nom: '',
+        telephone: '',
+        email: '',
+        siegeSocial: '',
+        gareRoutiereIds: [],
+      });
       load();
     } catch (e: any) {
       alert(e?.response?.data?.message || e?.message || 'Erreur enregistrement');
@@ -236,24 +259,6 @@ function CoopsTab() {
               />
             </div>
             <div>
-              <label className="label">Gare routière</label>
-              <select
-                className="input"
-                value={form.gareRoutiereId}
-                onChange={(e) =>
-                  setForm({ ...form, gareRoutiereId: e.target.value })
-                }
-                required
-              >
-                <option value="">— Sélectionner —</option>
-                {gares.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.nom}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="label">Téléphone</label>
               <input
                 className="input"
@@ -270,7 +275,7 @@ function CoopsTab() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
-            <div className="sm:col-span-2">
+            <div>
               <label className="label">Siège social</label>
               <input
                 className="input"
@@ -279,6 +284,46 @@ function CoopsTab() {
               />
             </div>
           </div>
+
+          <div>
+            <label className="label">
+              Gares routières{' '}
+              <span className="text-ink-dim font-normal">
+                (une ou plusieurs)
+              </span>
+            </label>
+            {gares.length === 0 ? (
+              <div className="text-xs text-ink-dim">
+                Aucune gare — créez d'abord une gare dans l'onglet Gares.
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {gares.map((g) => {
+                  const active = form.gareRoutiereIds.includes(g.id);
+                  return (
+                    <button
+                      type="button"
+                      key={g.id}
+                      onClick={() => toggleGare(g.id)}
+                      className={`px-3 py-1.5 rounded-xl border text-sm transition-all ${
+                        active
+                          ? 'bg-gradient-brand text-white border-transparent shadow-glow-soft'
+                          : 'border-bg-border text-ink-muted hover:text-ink hover:border-brand-400/50'
+                      }`}
+                    >
+                      {g.nom}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {form.gareRoutiereIds.length > 0 && (
+              <div className="text-[11px] text-ink-dim mt-1.5">
+                {form.gareRoutiereIds.length} gare(s) sélectionnée(s)
+              </div>
+            )}
+          </div>
+
           <button type="submit" className="btn btn-md btn-primary">
             <Save size={14} /> Enregistrer
           </button>
@@ -290,7 +335,7 @@ function CoopsTab() {
           <thead>
             <tr>
               <th>Nom</th>
-              <th>Gare</th>
+              <th>Gares</th>
               <th>Contact</th>
               <th>Stats</th>
               <th></th>
@@ -300,7 +345,19 @@ function CoopsTab() {
             {items.map((c) => (
               <tr key={c.id}>
                 <td className="font-semibold">{c.nom}</td>
-                <td className="text-ink-muted">{c.gareRoutiere?.nom ?? '—'}</td>
+                <td className="text-ink-muted">
+                  {c.gareRoutieres && c.gareRoutieres.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {c.gareRoutieres.map((g: any) => (
+                        <span key={g.id} className="badge-info">
+                          {g.nom}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className="text-xs">
                   <div>{c.telephone}</div>
                   <div className="text-ink-muted">{c.email}</div>
@@ -335,7 +392,7 @@ function CoopsTab() {
 
 function ChauffeursTab() {
   const [items, setItems] = useState<any[]>([]);
-  const [voitures, setVoitures] = useState<any[]>([]);
+  const [coops, setCoops] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -347,18 +404,18 @@ function ChauffeursTab() {
     numeroPermis: '',
     dateEmbauche: '',
     statut: 'disponible',
-    voitureId: '',
+    cooperativeId: '',
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
-    const [l, v] = await Promise.all([
+    const [l, c] = await Promise.all([
       transportApi.listChauffeurs({ q: q || undefined }),
-      transportApi.listVoitures({ limit: 500 }),
+      transportApi.listCoops({ limit: 500 }),
     ]);
     setItems(l.items);
-    setVoitures(v.items);
+    setCoops(c.items);
   }
   useEffect(() => {
     load();
@@ -380,7 +437,7 @@ function ChauffeursTab() {
       numeroPermis: '',
       dateEmbauche: '',
       statut: 'disponible',
-      voitureId: '',
+      cooperativeId: '',
     });
     setErr(null);
     setShowForm(true);
@@ -397,7 +454,7 @@ function ChauffeursTab() {
       numeroPermis: c.numeroPermis,
       dateEmbauche: c.dateEmbauche?.slice(0, 10) ?? '',
       statut: c.statut,
-      voitureId: c.voitureId,
+      cooperativeId: c.cooperativeId ?? c.cooperative?.id ?? '',
     });
     setErr(null);
     setShowForm(true);
@@ -449,7 +506,6 @@ function ChauffeursTab() {
               <th>Nom</th>
               <th>Permis</th>
               <th>Coopérative</th>
-              <th>Voiture</th>
               <th>Statut</th>
               <th>Voyages</th>
               <th></th>
@@ -466,10 +522,7 @@ function ChauffeursTab() {
                 </td>
                 <td className="font-mono text-xs">{c.numeroPermis}</td>
                 <td className="text-ink-muted text-xs">
-                  {c.voiture?.cooperative?.nom ?? '—'}
-                </td>
-                <td className="font-mono text-xs">
-                  {c.voiture?.matricule ?? '—'}
+                  {c.cooperative?.nom ?? c.voiture?.cooperative?.nom ?? '—'}
                 </td>
                 <td>
                   <span
@@ -520,7 +573,7 @@ function ChauffeursTab() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-ink-muted">
+                <td colSpan={6} className="text-center py-8 text-ink-muted">
                   Aucun chauffeur
                 </td>
               </tr>
@@ -614,23 +667,25 @@ function ChauffeursTab() {
                 />
               </div>
               <div>
-                <label className="label">Voiture assignée</label>
+                <label className="label">Coopérative</label>
                 <select
                   className="input"
-                  value={form.voitureId}
+                  value={form.cooperativeId}
                   onChange={(e) =>
-                    setForm({ ...form, voitureId: e.target.value })
+                    setForm({ ...form, cooperativeId: e.target.value })
                   }
                   required
                 >
                   <option value="">— Sélectionner —</option>
-                  {voitures.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.matricule} — {v.cooperative?.nom ?? ''} ({v.marque}{' '}
-                      {v.modele})
+                  {coops.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nom}
                     </option>
                   ))}
                 </select>
+                <div className="text-[11px] text-ink-dim mt-1">
+                  La voiture sera affectée lors de la création d'un voyage.
+                </div>
               </div>
               <div>
                 <label className="label">Statut</label>
@@ -822,7 +877,10 @@ function GaresTab() {
             latitude={form.latitude}
             longitude={form.longitude}
             onChange={(lat, lng) =>
-              setForm({ ...form, latitude: lat, longitude: lng })
+              setForm((f: any) => ({ ...f, latitude: lat, longitude: lng }))
+            }
+            onAddressChange={(addr) =>
+              setForm((f: any) => ({ ...f, localisation: addr }))
             }
           />
 
@@ -1099,6 +1157,10 @@ function VoyageFormModal({
   const [voitures, setVoitures] = useState<any[]>([]);
   const [chauffeurs, setChauffeurs] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [gares, setGares] = useState<any[]>([]);
+  const [gareDepartId, setGareDepartId] = useState<string>('');
+  const [gareArriveeId, setGareArriveeId] = useState<string>('');
+  const [showSeatEditor, setShowSeatEditor] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1154,26 +1216,83 @@ function VoyageFormModal({
   // Charge les listes de référence
   useEffect(() => {
     (async () => {
-      const [c, v, ch, cl] = await Promise.all([
+      const [c, v, ch, cl, g] = await Promise.all([
         transportApi.listCoops({ limit: 500 }),
         transportApi.listVoitures({ limit: 500 }),
         transportApi.listChauffeurs({ limit: 500 }),
         transportApi.listClasses(),
+        transportApi.listGares(),
       ]);
       setCoops(c.items);
       setVoitures(v.items);
       setChauffeurs(ch.items);
       setClasses(cl);
+      setGares(g);
+      // En édition : pré-sélectionne les gares à partir des localisations enregistrées
+      if (editing) {
+        const matchDep = g.find(
+          (x: any) => x.localisation === editing.localisationDepart,
+        );
+        const matchArr = g.find(
+          (x: any) => x.localisation === editing.localisationArrivee,
+        );
+        if (matchDep) setGareDepartId(matchDep.id);
+        if (matchArr) setGareArriveeId(matchArr.id);
+      }
     })();
   }, []);
 
-  // Filtre les voitures et chauffeurs par coopérative
+  // Coopératives filtrées par la gare de départ sélectionnée
+  const coopsFiltered = gareDepartId
+    ? coops.filter((c) => (c.gareRoutiereIds ?? []).includes(gareDepartId))
+    : coops;
+
+  // Sélection d'une gare → remplit localisation + coordonnées
+  function applyGareDepart(id: string) {
+    setGareDepartId(id);
+    const g = gares.find((x) => x.id === id);
+    setForm((f: any) => ({
+      ...f,
+      cooperativeId: '',
+      voitureId: '',
+      chauffeurId: '',
+      ...(g
+        ? {
+            localisationDepart: g.localisation ?? f.localisationDepart,
+            latitudeDepart: g.latitude ?? f.latitudeDepart,
+            longitudeDepart: g.longitude ?? f.longitudeDepart,
+          }
+        : {}),
+    }));
+  }
+  function applyGareArrivee(id: string) {
+    setGareArriveeId(id);
+    const g = gares.find((x) => x.id === id);
+    setForm((f: any) => ({
+      ...f,
+      ...(g
+        ? {
+            localisationArrivee: g.localisation ?? f.localisationArrivee,
+            latitudeArrivee: g.latitude ?? f.latitudeArrivee,
+            longitudeArrivee: g.longitude ?? f.longitudeArrivee,
+          }
+        : {}),
+    }));
+  }
+
+  // Filtre les voitures par coopérative
   const voituresFiltered = form.cooperativeId
     ? voitures.filter((v) => v.cooperativeId === form.cooperativeId)
     : voitures;
-  const chauffeursFiltered = form.voitureId
-    ? chauffeurs.filter((c) => c.voitureId === form.voitureId)
-    : chauffeurs;
+  // Chauffeurs de la coopérative qui sont libres (disponibles, ni suspendus ni retraités)
+  const chauffeursFiltered = form.cooperativeId
+    ? chauffeurs.filter(
+        (c) =>
+          c.cooperativeId === form.cooperativeId &&
+          c.statut !== 'suspendu' &&
+          c.statut !== 'retraite',
+      )
+    : [];
 
   // Haversine distance en km
   function haversineKm(
@@ -1229,6 +1348,7 @@ function VoyageFormModal({
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-auto"
       onClick={onClose}
@@ -1247,9 +1367,58 @@ function VoyageFormModal({
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          {/* Coopérative */}
+          {/* Gares de départ / arrivée */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">
+                Gare de départ <span className="text-danger-400">*</span>
+              </label>
+              <select
+                className="input"
+                value={gareDepartId}
+                onChange={(e) => applyGareDepart(e.target.value)}
+                required
+              >
+                <option value="">— Sélectionner —</option>
+                {gares.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nom}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">
+                Gare d'arrivée <span className="text-danger-400">*</span>
+              </label>
+              <select
+                className="input"
+                value={gareArriveeId}
+                onChange={(e) => applyGareArrivee(e.target.value)}
+                required
+              >
+                <option value="">— Sélectionner —</option>
+                {gares
+                  .filter((g) => g.id !== gareDepartId)
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nom}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Coopérative (filtrée par la gare de départ) */}
           <div>
-            <label className="label">Coopérative</label>
+            <label className="label">
+              Coopérative{' '}
+              {gareDepartId && (
+                <span className="text-ink-dim font-normal">
+                  ({coopsFiltered.length} dans cette gare)
+                </span>
+              )}
+            </label>
             <select
               className="input"
               value={form.cooperativeId}
@@ -1262,9 +1431,14 @@ function VoyageFormModal({
                 })
               }
               required
+              disabled={!gareDepartId}
             >
-              <option value="">— Sélectionner —</option>
-              {coops.map((c) => (
+              <option value="">
+                {gareDepartId
+                  ? '— Sélectionner —'
+                  : 'Choisissez d\'abord une gare de départ'}
+              </option>
+              {coopsFiltered.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nom}
                 </option>
@@ -1294,9 +1468,25 @@ function VoyageFormModal({
                   </option>
                 ))}
               </select>
+              {form.voitureId && (
+                <button
+                  type="button"
+                  onClick={() => setShowSeatEditor(true)}
+                  className="btn btn-sm btn-secondary mt-2 w-full"
+                >
+                  <Layers size={13} /> Modifier le plan des sièges
+                </button>
+              )}
             </div>
             <div>
-              <label className="label">Chauffeur</label>
+              <label className="label">
+                Chauffeur{' '}
+                {form.cooperativeId && (
+                  <span className="text-ink-dim font-normal">
+                    ({chauffeursFiltered.length} libre(s))
+                  </span>
+                )}
+              </label>
               <select
                 className="input"
                 value={form.chauffeurId}
@@ -1304,9 +1494,13 @@ function VoyageFormModal({
                   setForm({ ...form, chauffeurId: e.target.value })
                 }
                 required
-                disabled={!form.voitureId}
+                disabled={!form.cooperativeId}
               >
-                <option value="">— Sélectionner —</option>
+                <option value="">
+                  {form.cooperativeId
+                    ? '— Sélectionner —'
+                    : 'Choisissez d\'abord une coopérative'}
+                </option>
                 {chauffeursFiltered.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.prenom} {c.nom} · {c.numeroPermis}
@@ -1361,26 +1555,32 @@ function VoyageFormModal({
               />
             </div>
             <div>
-              <label className="label">Localisation départ (gare/adresse)</label>
+              <label className="label">
+                Localisation départ{' '}
+                <span className="text-ink-dim font-normal">
+                  (gare de départ)
+                </span>
+              </label>
               <input
-                className="input"
+                className="input bg-bg-elevated/40 cursor-not-allowed"
                 value={form.localisationDepart}
-                onChange={(e) =>
-                  setForm({ ...form, localisationDepart: e.target.value })
-                }
-                placeholder="Gare routière d'Anosibe"
+                readOnly
+                placeholder="Sélectionnez la gare de départ"
                 required
               />
             </div>
             <div>
-              <label className="label">Localisation arrivée</label>
+              <label className="label">
+                Localisation arrivée{' '}
+                <span className="text-ink-dim font-normal">
+                  (gare d'arrivée)
+                </span>
+              </label>
               <input
-                className="input"
+                className="input bg-bg-elevated/40 cursor-not-allowed"
                 value={form.localisationArrivee}
-                onChange={(e) =>
-                  setForm({ ...form, localisationArrivee: e.target.value })
-                }
-                placeholder="Gare routière Tamatave"
+                readOnly
+                placeholder="Sélectionnez la gare d'arrivée"
                 required
               />
             </div>
@@ -1548,6 +1748,39 @@ function VoyageFormModal({
         </form>
       </div>
     </div>
+
+    {/* Éditeur du plan des sièges (overlay) */}
+    {showSeatEditor && form.voitureId && (
+      <div
+        className="fixed inset-0 bg-black/70 z-[60] overflow-auto p-4"
+        onClick={() => setShowSeatEditor(false)}
+      >
+        <div
+          className="card max-w-6xl w-full mx-auto my-8 p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-lg font-bold">Plan des sièges</div>
+            <button
+              type="button"
+              onClick={() => setShowSeatEditor(false)}
+              className="btn btn-sm btn-ghost"
+            >
+              ✕
+            </button>
+          </div>
+          <SeatPlanEditor
+            voitureId={form.voitureId}
+            embedded
+            onSaved={async () => {
+              const v = await transportApi.listVoitures({ limit: 500 });
+              setVoitures(v.items);
+            }}
+          />
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

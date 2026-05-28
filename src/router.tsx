@@ -25,6 +25,7 @@ import Audit from './pages/Audit';
 import Compliance from './pages/Compliance';
 import Ops from './pages/Ops';
 import Transport from './pages/Transport';
+import Telepherique from './pages/Telepherique';
 import VoyageDetail from './pages/VoyageDetail';
 import SeatLayoutEditor from './pages/SeatLayoutEditor';
 import Admins from './pages/Admins';
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
       { path: 'compliance', element: <Compliance /> },
       { path: 'ops', element: <Ops /> },
       { path: 'transport', element: <Transport /> },
+      { path: 'transport/telepherique', element: <Telepherique /> },
       { path: 'transport/voyages/:id', element: <VoyageDetail /> },
       { path: 'transport/voitures/:id/layout', element: <SeatLayoutEditor /> },
       { path: 'admins', element: <Admins /> },

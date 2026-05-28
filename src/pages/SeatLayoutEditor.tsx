@@ -76,8 +76,16 @@ function defaultDeck(deckNumber = 1, rows = 8, cols = 5): Deck {
   return { deckNumber, name: deckNumber === 1 ? 'Bas' : `Étage ${deckNumber}`, grid };
 }
 
-export default function SeatLayoutEditor() {
-  const { id } = useParams<{ id: string }>();
+export function SeatPlanEditor({
+  voitureId,
+  embedded = false,
+  onSaved,
+}: {
+  voitureId: string;
+  embedded?: boolean;
+  onSaved?: (totalSeats: number) => void;
+}) {
+  const id = voitureId;
   const [voiture, setVoiture] = useState<any>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [activeDeck, setActiveDeck] = useState(0);
@@ -248,6 +256,7 @@ export default function SeatLayoutEditor() {
         `Plan enregistré · ${res.totalSeats} places · Capacité mise à jour`,
       );
       setDirty(false);
+      onSaved?.(res.totalSeats);
       load();
     } catch (e: any) {
       setErr(e?.response?.data?.message || 'Erreur');
@@ -264,12 +273,14 @@ export default function SeatLayoutEditor() {
 
   return (
     <div className="animate-fade-in">
-      <Link
-        to="/transport"
-        className="text-sm text-ink-muted hover:text-ink flex items-center gap-1 mb-4"
-      >
-        <ArrowLeft size={14} /> Retour aux voitures
-      </Link>
+      {!embedded && (
+        <Link
+          to="/transport"
+          className="text-sm text-ink-muted hover:text-ink flex items-center gap-1 mb-4"
+        >
+          <ArrowLeft size={14} /> Retour aux voitures
+        </Link>
+      )}
 
       <div className="card p-5 mb-4 flex items-start justify-between">
         <div>
@@ -483,4 +494,11 @@ export default function SeatLayoutEditor() {
       </div>
     </div>
   );
+}
+
+// Page (route) : lit l'id depuis l'URL
+export default function SeatLayoutEditor() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <SeatPlanEditor voitureId={id} />;
 }

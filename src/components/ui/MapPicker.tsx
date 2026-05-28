@@ -26,6 +26,8 @@ interface MapPickerProps {
   latitude?: number | null;
   longitude?: number | null;
   onChange: (lat: number, lng: number) => void;
+  /** Appelé avec l'adresse lisible résolue (reverse/forward geocoding) à chaque déplacement du pin */
+  onAddressChange?: (address: string) => void;
   height?: number;
   label?: string;
 }
@@ -57,13 +59,16 @@ export default function MapPicker({
   latitude,
   longitude,
   onChange,
+  onAddressChange,
   height = 280,
   label,
 }: MapPickerProps) {
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [pendingFly, setPendingFly] = useState<[number, number] | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const reverseAbortRef = useRef<AbortController | null>(null);
 
   const position: [number, number] | null =
     latitude != null && longitude != null ? [latitude, longitude] : null;
@@ -74,8 +79,44 @@ export default function MapPicker({
     [],
   );
 
-  async function geocode(e: React.FormEvent) {
-    e.preventDefault();
+  // Reverse geocoding : lat/lng → adresse lisible
+  async function reverseGeocode(lat: number, lng: number) {
+    if (!onAddressChange) return;
+    reverseAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    reverseAbortRef.current = ctrl;
+    setResolving(true);
+    try {
+      const url =
+        'https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1&lat=' +
+        lat +
+        '&lon=' +
+        lng;
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers: { 'Accept-Language': 'fr' },
+      });
+      const data = await res.json();
+      if (data?.display_name) onAddressChange(data.display_name);
+    } catch {
+      // silent
+    } finally {
+      setResolving(false);
+    }
+  }
+
+  // Pose le pin + résout l'adresse (knownAddress évite un reverse inutile après une recherche)
+  function pick(lat: number, lng: number, knownAddress?: string) {
+    onChange(lat, lng);
+    setPendingFly([lat, lng]);
+    if (knownAddress) {
+      onAddressChange?.(knownAddress);
+    } else {
+      reverseGeocode(lat, lng);
+    }
+  }
+
+  async function geocode() {
     if (!search.trim()) return;
     abortRef.current?.abort();
     const ctrl = new AbortController();
@@ -93,8 +134,7 @@ export default function MapPicker({
       if (arr && arr[0]) {
         const lat = parseFloat(arr[0].lat);
         const lng = parseFloat(arr[0].lon);
-        onChange(lat, lng);
-        setPendingFly([lat, lng]);
+        pick(lat, lng, arr[0].display_name);
       }
     } catch (err) {
       // silent
@@ -107,10 +147,7 @@ export default function MapPicker({
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        onChange(lat, lng);
-        setPendingFly([lat, lng]);
+        pick(pos.coords.latitude, pos.coords.longitude);
       },
       () => {},
       { enableHighAccuracy: true, timeout: 8000 },
@@ -121,7 +158,7 @@ export default function MapPicker({
     <div className="space-y-2">
       {label && <label className="label">{label}</label>}
 
-      <form onSubmit={geocode} className="flex gap-2">
+      <div className="flex gap-2">
         <div className="relative flex-1">
           <Search
             size={14}
@@ -131,12 +168,19 @@ export default function MapPicker({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                geocode();
+              }
+            }}
             placeholder="Rechercher une adresse (ex: Antananarivo Anosibe)…"
             className="input pl-9"
           />
         </div>
         <button
-          type="submit"
+          type="button"
+          onClick={geocode}
           disabled={searching}
           className="btn btn-md btn-secondary"
         >
@@ -150,7 +194,7 @@ export default function MapPicker({
         >
           <Crosshair size={14} />
         </button>
-      </form>
+      </div>
 
       <div
         className="rounded-xl overflow-hidden border border-bg-border/60 relative"
@@ -166,7 +210,7 @@ export default function MapPicker({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <ClickHandler onChange={onChange} />
+          <ClickHandler onChange={(lat, lng) => pick(lat, lng)} />
           <FlyTo position={pendingFly} />
           {position && <Marker position={position} />}
         </MapContainer>
@@ -180,6 +224,9 @@ export default function MapPicker({
           </span>
         ) : (
           <span>Cliquez sur la carte pour positionner le pin</span>
+        )}
+        {resolving && (
+          <span className="text-brand-300">· résolution de l'adresse…</span>
         )}
       </div>
     </div>

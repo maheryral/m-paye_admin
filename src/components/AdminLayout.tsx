@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import {
   LayoutDashboard,
   ShieldCheck,
@@ -27,23 +28,36 @@ import {
   Wallet,
   Bell,
   MessageCircle,
+  CableCar,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { useAdminSocket } from '../contexts/AdminSocketContext';
 import { LOCALES, type Locale } from '../i18n/locales';
 
-type NavItem =
-  | { section: string }
-  | {
-      to: string;
-      i18n: string;
-      icon: any;
-      end?: boolean;
-      badge?: 'kyc' | 'merchants' | 'refunds' | 'withdrawals' | 'reclamations';
-      perms?: string[]; // any-match. Vide / absent = visible pour tout admin connecté
-      superOnly?: boolean; // visible uniquement pour SUPER_ADMIN
-    };
+type Badge = 'kyc' | 'merchants' | 'refunds' | 'withdrawals' | 'reclamations';
+
+interface NavLeaf {
+  to: string;
+  i18n: string;
+  icon: any;
+  end?: boolean;
+  badge?: Badge;
+  perms?: string[]; // any-match. Vide / absent = visible pour tout admin connecté
+  superOnly?: boolean; // visible uniquement pour SUPER_ADMIN
+}
+
+interface NavGroupDef {
+  group: string; // identifiant unique du groupe
+  i18n: string;
+  icon: any;
+  perms?: string[];
+  superOnly?: boolean;
+  children: NavLeaf[];
+}
+
+type NavItem = { section: string } | NavLeaf | NavGroupDef;
 
 const NAV: NavItem[] = [
   {
@@ -139,10 +153,25 @@ const NAV: NavItem[] = [
     perms: ['communications:tickets'],
   },
   {
-    to: '/transport',
+    group: 'transport',
     i18n: 'nav.transport',
     icon: Bus,
     perms: ['transport:read', 'transport:write'],
+    children: [
+      {
+        to: '/transport',
+        i18n: 'nav.transport.taxibrousse',
+        icon: Bus,
+        end: true,
+        perms: ['transport:read', 'transport:write'],
+      },
+      {
+        to: '/transport/telepherique',
+        i18n: 'nav.transport.telepherique',
+        icon: CableCar,
+        perms: ['transport:read', 'transport:write'],
+      },
+    ],
   },
   {
     to: '/marketing',
@@ -216,6 +245,60 @@ const NAV: NavItem[] = [
   },
 ];
 
+// Groupe de navigation pliable (ex: Transport → Taxi-brousse, Téléphérique)
+function NavGroup({
+  group,
+  t,
+}: {
+  group: NavGroupDef;
+  t: (key: string) => string;
+}) {
+  const location = useLocation();
+  const Icon = group.icon;
+  // Actif si l'URL courante correspond à un des enfants
+  const isChildActive = group.children.some((c) =>
+    c.end ? location.pathname === c.to : location.pathname.startsWith(c.to),
+  );
+  const [open, setOpen] = useState(isChildActive);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`nav-item w-full ${isChildActive ? 'text-ink' : ''}`}
+      >
+        <Icon size={17} strokeWidth={2} />
+        <span className="flex-1 truncate text-left">{t(group.i18n)}</span>
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="mt-0.5 ml-3 pl-3 border-l border-bg-border/60 space-y-0.5">
+          {group.children.map((c) => {
+            const CIcon = c.icon;
+            return (
+              <NavLink
+                key={c.to}
+                to={c.to}
+                end={c.end}
+                className={({ isActive }) =>
+                  `nav-item text-sm ${isActive ? 'nav-item-active' : ''}`
+                }
+              >
+                {CIcon && <CIcon size={15} strokeWidth={2} />}
+                <span className="flex-1 truncate">{t(c.i18n)}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminLayout() {
   const { user, logout, can } = useAuth();
   const { locale, setLocale, t } = useLocale();
@@ -226,12 +309,28 @@ export default function AdminLayout() {
   // puis supprime les sections devenues vides.
   const visibleNav = (() => {
     const isSuper = user?.role === 'SUPER_ADMIN';
-    const filtered = NAV.filter((item) => {
-      if ('section' in item) return true;
-      if (item.superOnly && !isSuper) return false;
-      if (!item.perms || item.perms.length === 0) return true;
-      return can(item.perms);
-    });
+    const canSee = (it: { perms?: string[]; superOnly?: boolean }) => {
+      if (it.superOnly && !isSuper) return false;
+      if (!it.perms || it.perms.length === 0) return true;
+      return can(it.perms);
+    };
+
+    const filtered: NavItem[] = [];
+    for (const item of NAV) {
+      if ('section' in item) {
+        filtered.push(item);
+        continue;
+      }
+      if ('group' in item) {
+        if (!canSee(item)) continue;
+        const children = item.children.filter(canSee);
+        if (children.length === 0) continue;
+        filtered.push({ ...item, children });
+        continue;
+      }
+      if (canSee(item)) filtered.push(item);
+    }
+
     // Drop des sections orphelines
     const out: NavItem[] = [];
     for (let i = 0; i < filtered.length; i++) {
@@ -304,6 +403,9 @@ export default function AdminLayout() {
                   {t(item.section)}
                 </div>
               );
+            }
+            if ('group' in item) {
+              return <NavGroup key={item.group} group={item} t={t} />;
             }
             const { to, i18n, icon: Icon, end, badge } = item;
             const count = badge && pending ? pending[badge] : 0;

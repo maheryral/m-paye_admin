@@ -27,6 +27,11 @@ export interface Conversation {
   type: 'PRIVATE' | 'SUPPORT' | 'GROUP';
   title?: string | null;
   lastMessageAt?: string | null;
+  status?: 'OPEN' | 'ASSIGNED' | 'CLOSED';
+  assignedAgentId?: string | null;
+  closedAt?: string | null;
+  rating?: number | null;
+  ratingComment?: string | null;
   participants: ChatParticipant[];
   messages?: ChatMessage[];
   unreadCount?: number;
@@ -55,4 +60,18 @@ export const messagingApi = {
 
   markRead: (id: string) =>
     api.patch(`/messaging/conversations/${id}/read`).then((r) => r.data),
+
+  // Support : file d'attente + cycle de vie
+  supportQueue: () =>
+    api
+      .get<{ queue: Conversation[]; mine: Conversation[] }>(
+        '/messaging/support/queue',
+      )
+      .then((r) => r.data),
+
+  claim: (id: string) =>
+    api.post<Conversation>(`/messaging/conversations/${id}/claim`).then((r) => r.data),
+
+  close: (id: string) =>
+    api.patch<Conversation>(`/messaging/conversations/${id}/close`).then((r) => r.data),
 };
