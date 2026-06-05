@@ -19,6 +19,7 @@ import Broadcast from './pages/Broadcast';
 import Exports from './pages/Exports';
 import Security from './pages/Security';
 import FxRates from './pages/FxRates';
+import PaymentProviders from './pages/PaymentProviders';
 import Reclamations from './pages/Reclamations';
 import Wallets from './pages/Wallets';
 import Audit from './pages/Audit';
@@ -34,6 +35,12 @@ import Comms from './pages/Comms';
 import SecurityPlus from './pages/SecurityPlus';
 import Security2FA from './pages/Security2FA';
 import Messages from './pages/Messages';
+import ServiceTypes from './pages/ServiceTypes';
+import Billers from './pages/Billers';
+import Partners from './pages/Partners';
+import TransportSchools from './pages/TransportSchools';
+import TransportSchoolDetail from './pages/TransportSchoolDetail';
+import TransportRouteDetail from './pages/TransportRouteDetail';
 import NotFound from './pages/NotFound';
 
 export const router = createBrowserRouter([
@@ -59,6 +66,7 @@ export const router = createBrowserRouter([
       { path: 'wallets', element: <Wallets /> },
       { path: 'fees', element: <Fees /> },
       { path: 'fx-rates', element: <FxRates /> },
+      { path: 'payment-providers', element: <PaymentProviders /> },
       { path: 'users', element: <Users /> },
       { path: 'users/:id', element: <UserDetail /> },
       { path: 'security', element: <Security /> },
@@ -78,6 +86,12 @@ export const router = createBrowserRouter([
       { path: 'broadcast', element: <Broadcast /> },
       { path: 'messages', element: <Messages /> },
       { path: 'exports', element: <Exports /> },
+      { path: 'service-types', element: <ServiceTypes /> },
+      { path: 'billers', element: <Billers /> },
+      { path: 'partners', element: <Partners /> },
+      { path: 'transport-scolaire/schools', element: <TransportSchools /> },
+      { path: 'transport-scolaire/schools/:id', element: <TransportSchoolDetail /> },
+      { path: 'transport-scolaire/routes/:id', element: <TransportRouteDetail /> },
     ],
   },
   { path: '*', element: <NotFound /> },

@@ -586,6 +586,52 @@ export const fxRatesApi = {
     api.delete(`/super-admin/fx-rates/${paire}`).then((r) => r.data),
 };
 
+export interface PaymentProviderAdmin {
+  id: string;
+  code: string;
+  type: 'CARD' | 'MOBILE_MONEY';
+  name: string;
+  isActive: boolean;
+  isSandbox: boolean;
+  credentials: Record<string, string>; // masquées (••••xxxx)
+  publicConfig: Record<string, any>;
+  sortOrder: number;
+  updatedAt: string;
+}
+
+export const paymentProvidersApi = {
+  list: () =>
+    api
+      .get<PaymentProviderAdmin[]>('/super-admin/payment-providers')
+      .then((r) => r.data),
+  upsert: (data: {
+    code: string;
+    type: 'CARD' | 'MOBILE_MONEY';
+    name: string;
+    isActive?: boolean;
+    isSandbox?: boolean;
+    credentials?: Record<string, string>;
+    publicConfig?: Record<string, any>;
+    sortOrder?: number;
+  }) =>
+    api.put('/super-admin/payment-providers', data).then((r) => r.data),
+  setActive: (code: string, isActive: boolean) =>
+    api
+      .patch(`/super-admin/payment-providers/${code}/active`, { isActive })
+      .then((r) => r.data),
+  remove: (code: string) =>
+    api
+      .delete(`/super-admin/payment-providers/${code}`)
+      .then((r) => r.data),
+  testMvola: (amount?: number, customerPhone?: string) =>
+    api
+      .post('/super-admin/payment-providers/mvola/test', {
+        amount,
+        customerPhone,
+      })
+      .then((r) => r.data),
+};
+
 export const reclamationsAdminApi = {
   stats: () => api.get('/super-admin/reclamations/stats').then((r) => r.data),
   list: (params: {
@@ -709,5 +755,377 @@ export const paymentRequestsAdminApi = {
   reject: (id: string, reason: string) =>
     api
       .patch(`/super-admin/payment-requests/${id}/reject`, { reason })
+      .then((r) => r.data),
+};
+
+// ============================================================================
+// SERVICE TYPES & BILLERS (mini-programs)
+// ============================================================================
+
+export interface ServiceType {
+  id: string;
+  code: string;
+  label: string;
+  iconName: string | null;
+  color: string | null;
+  description: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BillerIntegrationType = 'WEB' | 'NATIVE';
+
+export interface Biller {
+  id: string;
+  name: string;
+  iconName: string | null;
+  logoUrl: string | null;
+  color: string | null;
+  redirectPath: string;
+  integrationType: BillerIntegrationType;
+  isEssential: boolean;
+  description: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  serviceTypeId: string;
+  serviceType?: { id: string; code: string; label: string; color: string | null };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const serviceTypesAdminApi = {
+  list: (): Promise<ServiceType[]> =>
+    api.get('/super-admin/service-types').then((r) => r.data),
+  create: (data: Partial<ServiceType>): Promise<ServiceType> =>
+    api.post('/super-admin/service-types', data).then((r) => r.data),
+  update: (id: string, data: Partial<ServiceType>): Promise<ServiceType> =>
+    api.patch(`/super-admin/service-types/${id}`, data).then((r) => r.data),
+  remove: (id: string): Promise<{ ok: boolean }> =>
+    api.delete(`/super-admin/service-types/${id}`).then((r) => r.data),
+};
+
+export const billersAdminApi = {
+  list: (): Promise<Biller[]> =>
+    api.get('/super-admin/billers').then((r) => r.data),
+  create: (data: Partial<Biller>): Promise<Biller> =>
+    api.post('/super-admin/billers', data).then((r) => r.data),
+  update: (id: string, data: Partial<Biller>): Promise<Biller> =>
+    api.patch(`/super-admin/billers/${id}`, data).then((r) => r.data),
+  remove: (id: string): Promise<{ ok: boolean }> =>
+    api.delete(`/super-admin/billers/${id}`).then((r) => r.data),
+};
+
+// ============================================================================
+// PARTNERS (OAuth — Phase 1)
+// ============================================================================
+
+export type PartnerScope =
+  | 'auth_user'
+  | 'auth_phone'
+  | 'auth_email'
+  | 'trade'
+  | 'trade_refund'
+  | 'wallet_balance';
+
+export interface Partner {
+  id: string;
+  appId: string;
+  name: string;
+  logoUrl: string | null;
+  description: string | null;
+  publicKeyPem: string;
+  allowedScopes: PartnerScope[];
+  redirectUris: string[];
+  webhookUrl: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  /** Présent UNIQUEMENT à la création ou rotation — affiché 1 seule fois. */
+  appSecret?: string;
+}
+
+export const partnersAdminApi = {
+  list: (): Promise<Partner[]> =>
+    api.get('/super-admin/partners').then((r) => r.data),
+  create: (data: Partial<Partner>): Promise<Partner> =>
+    api.post('/super-admin/partners', data).then((r) => r.data),
+  update: (id: string, data: Partial<Partner>): Promise<Partner> =>
+    api.patch(`/super-admin/partners/${id}`, data).then((r) => r.data),
+  rotateSecret: (id: string): Promise<Partner> =>
+    api.post(`/super-admin/partners/${id}/rotate-secret`).then((r) => r.data),
+  remove: (id: string): Promise<{ ok: boolean }> =>
+    api.delete(`/super-admin/partners/${id}`).then((r) => r.data),
+
+  // ─── Phase 8 — Anti-fraude ─────────────
+
+  anomalies: (id: string): Promise<AnomalyReport> =>
+    api.get(`/super-admin/partners/${id}/anomalies`).then((r) => r.data),
+
+  listVelocityLimits: (id: string): Promise<PartnerVelocityLimit[]> =>
+    api.get(`/super-admin/partners/${id}/velocity-limits`).then((r) => r.data),
+
+  upsertVelocityLimit: (
+    id: string,
+    data: UpsertVelocityLimitDto,
+  ): Promise<PartnerVelocityLimit> =>
+    api
+      .post(`/super-admin/partners/${id}/velocity-limits`, data)
+      .then((r) => r.data),
+
+  removeVelocityLimit: (
+    id: string,
+    limitId: string,
+  ): Promise<{ ok: boolean }> =>
+    api
+      .delete(`/super-admin/partners/${id}/velocity-limits/${limitId}`)
+      .then((r) => r.data),
+};
+
+export type FlagSeverity = 'WARN' | 'ALERT';
+
+export interface AnomalyFlag {
+  code: string;
+  severity: FlagSeverity;
+  message: string;
+  metric: number;
+  threshold: number;
+}
+
+export interface WindowStats {
+  tradesTotal: number;
+  tradesPaid: number;
+  tradesFailed: number;
+  tradesRefunded: number;
+  failureRate: number;
+  refundRate: number;
+  totalAmount: number;
+  avgAmount: number;
+}
+
+export interface AnomalyReport {
+  partnerId: string;
+  windows: {
+    last24h: WindowStats;
+    last7d: WindowStats;
+    last30d: WindowStats;
+  };
+  webhooks: {
+    abandoned24h: number;
+    abandoned7d: number;
+    avgRetryCount: number;
+  };
+  flags: AnomalyFlag[];
+  computedAt: string;
+}
+
+export interface PartnerVelocityLimit {
+  id: string;
+  partnerId: string;
+  scope: 'PARTNER' | 'USER';
+  scopeId: string | null;
+  perTransaction: string | number | null;
+  perDay: string | number | null;
+  perWeek: string | number | null;
+  perMonth: string | number | null;
+  isActive: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertVelocityLimitDto {
+  scope: 'PARTNER' | 'USER';
+  scopeId?: string | null;
+  perTransaction?: number | null;
+  perDay?: number | null;
+  perWeek?: number | null;
+  perMonth?: number | null;
+  isActive?: boolean;
+  notes?: string | null;
+}
+
+// ═════════════════════════════════════════════════════════
+//  TRANSPORT SCOLAIRE (admin)
+// ═════════════════════════════════════════════════════════
+
+export interface AdminSchool {
+  id: string;
+  nom: string;
+  adresse: string | null;
+  ville: string;
+  telephone: string | null;
+  email: string | null;
+  logoUrl: string | null;
+  description: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { routes: number };
+}
+
+export interface UpsertSchoolDto {
+  nom?: string;
+  adresse?: string | null;
+  ville?: string;
+  telephone?: string | null;
+  email?: string | null;
+  logoUrl?: string | null;
+  description?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isActive?: boolean;
+}
+
+export interface AdminRoute {
+  id: string;
+  nom: string;
+  description: string | null;
+  schoolId: string;
+  voitureId: string | null;
+  chauffeurId: string | null;
+  capaciteMax: number;
+  heureDepartMatin: string | null;
+  heureRetourSoir: string | null;
+  joursDesservis: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  school?: { id: string; nom: string; ville: string };
+  voiture?: { id: string; matricule: string; capacite: number } | null;
+  chauffeur?: { id: string; nom: string; prenom: string } | null;
+  _count?: { stops: number; pricingPlans: number; subscriptions: number };
+}
+
+export interface UpsertRouteDto {
+  nom?: string;
+  description?: string | null;
+  schoolId?: string;
+  voitureId?: string | null;
+  chauffeurId?: string | null;
+  capaciteMax?: number;
+  heureDepartMatin?: string | null;
+  heureRetourSoir?: string | null;
+  joursDesservis?: string[];
+  isActive?: boolean;
+}
+
+export type PlanCategory = 'MONTHLY' | 'QUARTERLY' | 'PER_TRIP' | 'OTHER';
+
+export interface AdminPricingPlan {
+  id: string;
+  routeId: string;
+  code: string;
+  label: string;
+  description: string | null;
+  category: PlanCategory;
+  dureeJours: number;
+  prix: string | number;
+  minStudents: number;
+  maxStudents: number;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertPricingPlanDto {
+  code?: string;
+  label?: string;
+  description?: string | null;
+  category?: PlanCategory;
+  dureeJours?: number;
+  prix?: number;
+  minStudents?: number;
+  maxStudents?: number;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface AdminStop {
+  id: string;
+  routeId: string;
+  nom: string;
+  ordre: number;
+  heurePassage: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface UpsertStopDto {
+  nom?: string;
+  ordre?: number;
+  heurePassage?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export const transportScolaireAdminApi = {
+  // Schools
+  listSchools: (): Promise<AdminSchool[]> =>
+    api.get('/super-admin/transport-scolaire/schools').then((r) => r.data),
+  getSchool: (id: string): Promise<AdminSchool> =>
+    api.get(`/super-admin/transport-scolaire/schools/${id}`).then((r) => r.data),
+  createSchool: (dto: UpsertSchoolDto): Promise<AdminSchool> =>
+    api.post('/super-admin/transport-scolaire/schools', dto).then((r) => r.data),
+  updateSchool: (id: string, dto: UpsertSchoolDto): Promise<AdminSchool> =>
+    api.patch(`/super-admin/transport-scolaire/schools/${id}`, dto).then((r) => r.data),
+  removeSchool: (id: string): Promise<{ ok: boolean }> =>
+    api.delete(`/super-admin/transport-scolaire/schools/${id}`).then((r) => r.data),
+
+  // Routes
+  listRoutes: (schoolId?: string): Promise<AdminRoute[]> =>
+    api
+      .get('/super-admin/transport-scolaire/routes', {
+        params: schoolId ? { schoolId } : undefined,
+      })
+      .then((r) => r.data),
+  getRoute: (id: string): Promise<AdminRoute & { stops: AdminStop[]; pricingPlans: AdminPricingPlan[] }> =>
+    api.get(`/super-admin/transport-scolaire/routes/${id}`).then((r) => r.data),
+  createRoute: (dto: UpsertRouteDto): Promise<AdminRoute> =>
+    api.post('/super-admin/transport-scolaire/routes', dto).then((r) => r.data),
+  updateRoute: (id: string, dto: UpsertRouteDto): Promise<AdminRoute> =>
+    api.patch(`/super-admin/transport-scolaire/routes/${id}`, dto).then((r) => r.data),
+  removeRoute: (id: string): Promise<{ ok: boolean }> =>
+    api.delete(`/super-admin/transport-scolaire/routes/${id}`).then((r) => r.data),
+
+  // Pricing plans (nested)
+  listPlans: (routeId: string): Promise<AdminPricingPlan[]> =>
+    api.get(`/super-admin/transport-scolaire/routes/${routeId}/plans`).then((r) => r.data),
+  createPlan: (routeId: string, dto: UpsertPricingPlanDto): Promise<AdminPricingPlan> =>
+    api.post(`/super-admin/transport-scolaire/routes/${routeId}/plans`, dto).then((r) => r.data),
+  updatePlan: (
+    routeId: string,
+    planId: string,
+    dto: UpsertPricingPlanDto,
+  ): Promise<AdminPricingPlan> =>
+    api
+      .patch(`/super-admin/transport-scolaire/routes/${routeId}/plans/${planId}`, dto)
+      .then((r) => r.data),
+  removePlan: (routeId: string, planId: string): Promise<{ ok: boolean }> =>
+    api
+      .delete(`/super-admin/transport-scolaire/routes/${routeId}/plans/${planId}`)
+      .then((r) => r.data),
+
+  // Stops (nested)
+  listStops: (routeId: string): Promise<AdminStop[]> =>
+    api.get(`/super-admin/transport-scolaire/routes/${routeId}/stops`).then((r) => r.data),
+  createStop: (routeId: string, dto: UpsertStopDto): Promise<AdminStop> =>
+    api.post(`/super-admin/transport-scolaire/routes/${routeId}/stops`, dto).then((r) => r.data),
+  updateStop: (
+    routeId: string,
+    stopId: string,
+    dto: UpsertStopDto,
+  ): Promise<AdminStop> =>
+    api
+      .patch(`/super-admin/transport-scolaire/routes/${routeId}/stops/${stopId}`, dto)
+      .then((r) => r.data),
+  removeStop: (routeId: string, stopId: string): Promise<{ ok: boolean }> =>
+    api
+      .delete(`/super-admin/transport-scolaire/routes/${routeId}/stops/${stopId}`)
       .then((r) => r.data),
 };

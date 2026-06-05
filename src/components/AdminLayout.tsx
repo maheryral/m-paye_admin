@@ -15,6 +15,7 @@ import {
   Download,
   ShieldOff,
   Coins,
+  CreditCard,
   MessagesSquare,
   Snowflake,
   FileClock,
@@ -25,11 +26,14 @@ import {
   LifeBuoy,
   ShieldHalf,
   KeyRound,
+  GraduationCap,
   Wallet,
   Bell,
   MessageCircle,
   CableCar,
   ChevronDown,
+  Tag,
+  AppWindow,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
@@ -131,6 +135,36 @@ const NAV: NavItem[] = [
     i18n: 'nav.fxrates',
     icon: Coins,
     perms: ['fx-rates:read', 'fx-rates:write'],
+  },
+  {
+    to: '/payment-providers',
+    i18n: 'nav.paymentProviders',
+    icon: CreditCard,
+    superOnly: true,
+  },
+  {
+    to: '/service-types',
+    i18n: 'nav.serviceTypes',
+    icon: Tag,
+    perms: ['service-types:list', 'service-types:manage'],
+  },
+  {
+    to: '/billers',
+    i18n: 'nav.billers',
+    icon: AppWindow,
+    perms: ['billers:list', 'billers:manage'],
+  },
+  {
+    to: '/partners',
+    i18n: 'nav.partners',
+    icon: KeyRound,
+    perms: ['partners:list', 'partners:manage'],
+  },
+  {
+    to: '/transport-scolaire/schools',
+    i18n: 'nav.transportScolaire',
+    icon: GraduationCap,
+    perms: ['transport-scolaire:read', 'transport-scolaire:write'],
   },
   { section: 'nav.section.community' },
   {
