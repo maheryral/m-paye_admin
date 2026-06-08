@@ -1129,3 +1129,48 @@ export const transportScolaireAdminApi = {
       .delete(`/super-admin/transport-scolaire/routes/${routeId}/stops/${stopId}`)
       .then((r) => r.data),
 };
+
+// ═════════════════════════════════════════════════════════
+//  APP THEME (couleurs globales mobile + web)
+// ═════════════════════════════════════════════════════════
+
+export const THEME_COLOR_KEYS = [
+  'primary',
+  'primaryDark',
+  'secondary',
+  'background',
+  'card',
+  'text',
+  'textSecondary',
+  'textTertiary',
+  'border',
+  'borderLight',
+  'error',
+  'success',
+  'warning',
+  'info',
+  'overlay',
+  'shadow',
+] as const;
+
+export type ThemeColorKey = typeof THEME_COLOR_KEYS[number];
+export type ThemeColors = Record<ThemeColorKey, string>;
+
+export interface AppTheme {
+  colorsLight: ThemeColors;
+  colorsDark: ThemeColors;
+  version: number;
+  updatedAt: string;
+}
+
+export interface UpdateThemeDto {
+  colorsLight?: Partial<ThemeColors>;
+  colorsDark?: Partial<ThemeColors>;
+}
+
+export const appThemeAdminApi = {
+  get: (): Promise<AppTheme> =>
+    api.get('/super-admin/app-theme').then((r) => r.data),
+  update: (dto: UpdateThemeDto): Promise<AppTheme> =>
+    api.patch('/super-admin/app-theme', dto).then((r) => r.data),
+};

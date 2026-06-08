@@ -97,87 +97,91 @@ function FailedTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0">
+        <div className="card overflow-hidden min-w-0">
           <div className="px-5 py-4 border-b border-bg-border">
             <div className="text-sm font-bold">Top 20 IPs offensantes</div>
           </div>
-          <table className="table-base">
-            <thead>
-              <tr>
-                <th>IP</th>
-                <th>Échecs</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topIps.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="table-base">
+              <thead>
                 <tr>
-                  <td colSpan={3} className="text-center py-6 text-ink-muted">
-                    Aucune
-                  </td>
+                  <th>IP</th>
+                  <th>Échecs</th>
+                  <th></th>
                 </tr>
-              ) : (
-                data.topIps.map((r: any) => (
-                  <tr key={r.ip}>
-                    <td className="font-mono text-xs">{r.ip}</td>
-                    <td className="font-bold text-danger-400">{r.count}</td>
-                    <td>
-                      <a
-                        href="/security"
-                        className="text-brand-300 text-xs hover:underline"
-                      >
-                        Bloquer →
-                      </a>
+              </thead>
+              <tbody>
+                {data.topIps.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="text-center py-6 text-ink-muted">
+                      Aucune
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  data.topIps.map((r: any) => (
+                    <tr key={r.ip}>
+                      <td className="font-mono text-xs whitespace-nowrap">{r.ip}</td>
+                      <td className="font-bold text-danger-400">{r.count}</td>
+                      <td>
+                        <a
+                          href="/security"
+                          className="text-brand-300 text-xs hover:underline whitespace-nowrap"
+                        >
+                          Bloquer →
+                        </a>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden min-w-0">
           <div className="px-5 py-4 border-b border-bg-border">
             <div className="text-sm font-bold">Top 20 comptes ciblés</div>
           </div>
-          <table className="table-base">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Échecs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topUsers.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="table-base">
+              <thead>
                 <tr>
-                  <td colSpan={2} className="text-center py-6 text-ink-muted">
-                    Aucun
-                  </td>
+                  <th>User</th>
+                  <th>Échecs</th>
                 </tr>
-              ) : (
-                data.topUsers.map((u: any) => (
-                  <tr key={u.userId}>
-                    <td>
-                      {u.user ? (
-                        <div>
-                          <div className="font-semibold">
-                            {u.user.prenom} {u.user.nom}
-                          </div>
-                          <div className="text-xs text-ink-muted">
-                            {u.user.email}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="font-mono text-xs">{u.userId}</span>
-                      )}
+              </thead>
+              <tbody>
+                {data.topUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="text-center py-6 text-ink-muted">
+                      Aucun
                     </td>
-                    <td className="font-bold text-danger-400">{u.count}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  data.topUsers.map((u: any) => (
+                    <tr key={u.userId}>
+                      <td>
+                        {u.user ? (
+                          <div className="min-w-0">
+                            <div className="font-semibold truncate max-w-[220px]">
+                              {u.user.prenom} {u.user.nom}
+                            </div>
+                            <div className="text-xs text-ink-muted truncate max-w-[220px]">
+                              {u.user.email}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="font-mono text-xs">{u.userId}</span>
+                        )}
+                      </td>
+                      <td className="font-bold text-danger-400">{u.count}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -202,11 +206,21 @@ function FailedTab() {
                   <td className="text-xs text-ink-muted whitespace-nowrap">
                     {new Date(l.loginAt).toLocaleString('fr-FR')}
                   </td>
-                  <td className="font-mono text-xs">{l.ipAddress ?? '—'}</td>
-                  <td className="text-xs text-ink-muted max-w-xs truncate">
-                    {l.userAgent ?? '—'}
+                  <td className="font-mono text-xs whitespace-nowrap">{l.ipAddress ?? '—'}</td>
+                  <td className="text-xs text-ink-muted">
+                    {/* span block requis : truncate ne fonctionne pas sur <td> sans table-fixed */}
+                    <span
+                      className="block max-w-[260px] truncate"
+                      title={l.userAgent ?? ''}
+                    >
+                      {l.userAgent ?? '—'}
+                    </span>
                   </td>
-                  <td className="text-xs">{l.failureReason ?? '—'}</td>
+                  <td className="text-xs">
+                    <span className="block max-w-[180px] truncate" title={l.failureReason ?? ''}>
+                      {l.failureReason ?? '—'}
+                    </span>
+                  </td>
                   <td>
                     {l.isSuspicious ? (
                       <span className="badge-danger">SUSPECT</span>
@@ -306,44 +320,58 @@ function DevicesTab() {
       )}
 
       <div className="card overflow-hidden">
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>Device ID</th>
-              <th>Motif</th>
-              <th>Bloqué le</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((d) => (
-              <tr key={d.id}>
-                <td className="font-mono text-xs">{d.deviceId}</td>
-                <td className="text-ink-muted max-w-md truncate">
-                  {d.reason}
-                </td>
-                <td className="text-ink-muted text-xs">
-                  {new Date(d.blockedAt).toLocaleString('fr-FR')}
-                </td>
-                <td>
-                  <button
-                    onClick={() => unblock(d.id)}
-                    className="btn btn-sm btn-ghost text-danger-400"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 && (
+        <div className="overflow-x-auto">
+          <table className="table-base">
+            <thead>
               <tr>
-                <td colSpan={4} className="text-center py-8 text-ink-muted">
-                  Aucun device bloqué
-                </td>
+                <th>Device ID</th>
+                <th>Motif</th>
+                <th>Bloqué le</th>
+                <th></th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((d) => (
+                <tr key={d.id}>
+                  <td className="font-mono text-xs">
+                    <span
+                      className="block max-w-[240px] truncate"
+                      title={d.deviceId}
+                    >
+                      {d.deviceId}
+                    </span>
+                  </td>
+                  <td className="text-ink-muted">
+                    <span
+                      className="block max-w-[320px] truncate"
+                      title={d.reason}
+                    >
+                      {d.reason}
+                    </span>
+                  </td>
+                  <td className="text-ink-muted text-xs whitespace-nowrap">
+                    {new Date(d.blockedAt).toLocaleString('fr-FR')}
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => unblock(d.id)}
+                      className="btn btn-sm btn-ghost text-danger-400"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-ink-muted">
+                    Aucun device bloqué
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

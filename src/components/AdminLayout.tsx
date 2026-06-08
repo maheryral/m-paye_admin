@@ -27,6 +27,7 @@ import {
   ShieldHalf,
   KeyRound,
   GraduationCap,
+  Palette,
   Wallet,
   Bell,
   MessageCircle,
@@ -165,6 +166,12 @@ const NAV: NavItem[] = [
     i18n: 'nav.transportScolaire',
     icon: GraduationCap,
     perms: ['transport-scolaire:read', 'transport-scolaire:write'],
+  },
+  {
+    to: '/app-theme',
+    i18n: 'nav.appTheme',
+    icon: Palette,
+    perms: ['app-theme:read', 'app-theme:write'],
   },
   { section: 'nav.section.community' },
   {

@@ -41,6 +41,7 @@ import Partners from './pages/Partners';
 import TransportSchools from './pages/TransportSchools';
 import TransportSchoolDetail from './pages/TransportSchoolDetail';
 import TransportRouteDetail from './pages/TransportRouteDetail';
+import AppThemePage from './pages/AppTheme';
 import NotFound from './pages/NotFound';
 
 export const router = createBrowserRouter([
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
       { path: 'transport-scolaire/schools', element: <TransportSchools /> },
       { path: 'transport-scolaire/schools/:id', element: <TransportSchoolDetail /> },
       { path: 'transport-scolaire/routes/:id', element: <TransportRouteDetail /> },
+      { path: 'app-theme', element: <AppThemePage /> },
     ],
   },
   { path: '*', element: <NotFound /> },
