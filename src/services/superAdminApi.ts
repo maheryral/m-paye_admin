@@ -1174,3 +1174,89 @@ export const appThemeAdminApi = {
   update: (dto: UpdateThemeDto): Promise<AppTheme> =>
     api.patch('/super-admin/app-theme', dto).then((r) => r.data),
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// Location de voiture — admin CRUD (Phase 1)
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface RentalPartnerRow {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  phone: string;
+  email?: string | null;
+  city: string;
+  /** Coordonnées GPS WGS84 (optionnelles). Stockées en Decimal côté DB. */
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  description?: string | null;
+  isActive: boolean;
+  _count?: { vehicles: number; listings: number };
+}
+
+export interface RentalVehicleRow {
+  id: string;
+  partnerId: string;
+  brand: string;
+  model: string;
+  year?: number | null;
+  type: string;
+  seats: number;
+  hasAC: boolean;
+  transmission: string;
+  fuel: string;
+  photos?: string[] | null;
+  description?: string | null;
+  isActive: boolean;
+  partner?: { id: string; name: string };
+  _count?: { listings: number };
+}
+
+export interface RentalListingRow {
+  id: string;
+  vehicleId: string;
+  partnerId: string;
+  city: string;
+  pricePerDay: number | string;
+  withDriver: boolean;
+  deposit: number | string;
+  minDays: number;
+  notes?: string | null;
+  isActive: boolean;
+  vehicle?: { id: string; brand: string; model: string };
+  partner?: { id: string; name: string };
+}
+
+const VR = '/super-admin/vehicle-rentals';
+
+export const vehicleRentalsAdminApi = {
+  // Partenaires
+  listPartners: (): Promise<RentalPartnerRow[]> =>
+    api.get(`${VR}/partners`).then((r) => r.data),
+  createPartner: (dto: Partial<RentalPartnerRow>): Promise<RentalPartnerRow> =>
+    api.post(`${VR}/partners`, dto).then((r) => r.data),
+  updatePartner: (id: string, dto: Partial<RentalPartnerRow>): Promise<RentalPartnerRow> =>
+    api.patch(`${VR}/partners/${id}`, dto).then((r) => r.data),
+  deletePartner: (id: string) =>
+    api.delete(`${VR}/partners/${id}`).then((r) => r.data),
+
+  // Véhicules
+  listVehicles: (partnerId?: string): Promise<RentalVehicleRow[]> =>
+    api.get(`${VR}/vehicles`, { params: partnerId ? { partnerId } : {} }).then((r) => r.data),
+  createVehicle: (dto: Partial<RentalVehicleRow>): Promise<RentalVehicleRow> =>
+    api.post(`${VR}/vehicles`, dto).then((r) => r.data),
+  updateVehicle: (id: string, dto: Partial<RentalVehicleRow>): Promise<RentalVehicleRow> =>
+    api.patch(`${VR}/vehicles/${id}`, dto).then((r) => r.data),
+  deleteVehicle: (id: string) =>
+    api.delete(`${VR}/vehicles/${id}`).then((r) => r.data),
+
+  // Annonces
+  listListings: (filter?: { partnerId?: string; vehicleId?: string }): Promise<RentalListingRow[]> =>
+    api.get(`${VR}/listings`, { params: filter || {} }).then((r) => r.data),
+  createListing: (dto: Partial<RentalListingRow>): Promise<RentalListingRow> =>
+    api.post(`${VR}/listings`, dto).then((r) => r.data),
+  updateListing: (id: string, dto: Partial<RentalListingRow>): Promise<RentalListingRow> =>
+    api.patch(`${VR}/listings/${id}`, dto).then((r) => r.data),
+  deleteListing: (id: string) =>
+    api.delete(`${VR}/listings/${id}`).then((r) => r.data),
+};

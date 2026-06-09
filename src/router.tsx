@@ -34,6 +34,7 @@ import Marketing from './pages/Marketing';
 import Comms from './pages/Comms';
 import SecurityPlus from './pages/SecurityPlus';
 import Security2FA from './pages/Security2FA';
+import VehicleRentals from './pages/VehicleRentals';
 import Messages from './pages/Messages';
 import ServiceTypes from './pages/ServiceTypes';
 import Billers from './pages/Billers';
@@ -81,6 +82,7 @@ export const router = createBrowserRouter([
       { path: 'marketing', element: <Marketing /> },
       { path: 'comms', element: <Comms /> },
       { path: 'security-plus', element: <SecurityPlus /> },
+      { path: 'vehicle-rentals', element: <VehicleRentals /> },
       { path: 'my-2fa', element: <Security2FA /> },
       { path: 'audit', element: <Audit /> },
       { path: 'reclamations', element: <Reclamations /> },

@@ -32,6 +32,7 @@ import {
   Bell,
   MessageCircle,
   CableCar,
+  Car,
   ChevronDown,
   Tag,
   AppWindow,
@@ -166,6 +167,12 @@ const NAV: NavItem[] = [
     i18n: 'nav.transportScolaire',
     icon: GraduationCap,
     perms: ['transport-scolaire:read', 'transport-scolaire:write'],
+  },
+  {
+    to: '/vehicle-rentals',
+    i18n: 'nav.vehicleRentals',
+    icon: Car,
+    perms: ['vehicle-rentals:read', 'vehicle-rentals:write'],
   },
   {
     to: '/app-theme',
