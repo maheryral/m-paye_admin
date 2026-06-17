@@ -1175,6 +1175,35 @@ export const appThemeAdminApi = {
     api.patch('/super-admin/app-theme', dto).then((r) => r.data),
 };
 
+// ── Réglages email (SMTP) ──
+export interface EmailSettings {
+  host: string;
+  port: number;
+  username: string;
+  fromName: string;
+  fromEmail: string;
+  enabled: boolean;
+  hasPassword: boolean;
+  updatedAt?: string;
+}
+export interface UpdateEmailSettings {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  fromName?: string;
+  fromEmail?: string;
+  enabled?: boolean;
+}
+export const emailSettingsAdminApi = {
+  get: (): Promise<EmailSettings> =>
+    api.get('/super-admin/email-settings').then((r) => r.data),
+  update: (dto: UpdateEmailSettings): Promise<EmailSettings> =>
+    api.put('/super-admin/email-settings', dto).then((r) => r.data),
+  test: (to: string): Promise<{ success: boolean; message: string }> =>
+    api.post('/super-admin/email-settings/test', { to }).then((r) => r.data),
+};
+
 // ════════════════════════════════════════════════════════════════════════════
 // Location de voiture — admin CRUD (Phase 1)
 // ════════════════════════════════════════════════════════════════════════════

@@ -33,6 +33,7 @@ export default function Fees() {
     max: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -54,17 +55,32 @@ export default function Fees() {
 
   async function createFee(e: React.FormEvent) {
     e.preventDefault();
+    setErr(null);
+    if (!form.value || Number(form.value) <= 0) {
+      setErr('La valeur doit être supérieure à 0.');
+      return;
+    }
     setSubmitting(true);
     try {
       await feesAdminApi.create({
         ...form,
-        value: Number(form.value),
+        // En PERCENT, l'admin saisit un pourcentage lisible (1.5) → le backend
+        // attend une fraction (montant × value), donc on divise par 100.
+        value:
+          form.mode === 'PERCENT'
+            ? Number(form.value) / 100
+            : Number(form.value),
         min: form.min ? Number(form.min) : undefined,
         max: form.max ? Number(form.max) : undefined,
       });
       setShowForm(false);
       setForm({ type: 'TRANSFER', mode: 'PERCENT', value: 0, min: '', max: '' });
       load();
+    } catch (e: any) {
+      setErr(
+        e?.response?.data?.message?.toString() ||
+          'Impossible de créer le frais. Réessayez.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -142,11 +158,11 @@ export default function Fees() {
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
               >
-                <option value="TRANSFER">TRANSFER</option>
-                <option value="DEPOSIT">DEPOSIT</option>
-                <option value="WITHDRAWAL">WITHDRAWAL</option>
-                <option value="PAYMENT">PAYMENT</option>
-                <option value="REFUND">REFUND</option>
+                <option value="TRANSFER">TRANSFER — Transfert entre utilisateurs</option>
+                <option value="MERCHANT_PAYMENT">MERCHANT_PAYMENT — Paiement marchand (QR / lien)</option>
+                <option value="WITHDRAWAL">WITHDRAWAL — Retrait</option>
+                <option value="TAXI_BROUSSE">TAXI_BROUSSE — Réservation taxi-brousse</option>
+                <option value="TELEPHERIQUE">TELEPHERIQUE — Ticket téléphérique</option>
               </select>
             </div>
             <div>
@@ -161,41 +177,60 @@ export default function Fees() {
               </select>
             </div>
             <div>
-              <label className="label">Valeur</label>
+              <label className="label">
+                {form.mode === 'PERCENT' ? 'Valeur (en %)' : 'Valeur (en Ar)'}
+              </label>
               <input
                 className="input"
                 type="number"
-                step="0.01"
+                step={form.mode === 'PERCENT' ? '0.1' : '1'}
                 value={form.value}
                 onChange={(e) =>
                   setForm({ ...form, value: Number(e.target.value) })
                 }
+                placeholder={form.mode === 'PERCENT' ? 'ex : 1.5' : 'ex : 500'}
                 required
               />
+              <div className="text-xs text-ink-dim mt-1">
+                {form.mode === 'PERCENT'
+                  ? 'Pourcentage du montant. Ex : 1.5 = 1,5 % du montant.'
+                  : 'Montant fixe prélevé par opération, en Ariary.'}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label">Min</label>
+                <label className="label">Min (Ar)</label>
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.min}
                   onChange={(e) => setForm({ ...form, min: e.target.value })}
+                  placeholder="plancher"
                 />
               </div>
               <div>
-                <label className="label">Max</label>
+                <label className="label">Max (Ar)</label>
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.max}
                   onChange={(e) => setForm({ ...form, max: e.target.value })}
+                  placeholder="plafond"
                 />
               </div>
             </div>
+            <div className="sm:col-span-2 text-xs text-ink-dim -mt-1">
+              Min/Max sont des montants en Ariary appliqués au frais final
+              (plancher et plafond). Laisser vide = pas de limite.
+            </div>
           </div>
+          {err && (
+            <div className="text-sm text-danger-400 bg-danger-bg p-3 rounded-xl">
+              {err}
+            </div>
+          )}
           <button
             type="submit"
             disabled={submitting}
@@ -250,11 +285,16 @@ export default function Fees() {
                     <td className="font-semibold">{f.type}</td>
                     <td>{f.mode}</td>
                     <td className="font-mono">
-                      {f.value}
-                      {f.mode === 'PERCENT' ? '%' : ''}
+                      {f.mode === 'PERCENT'
+                        ? `${Number(f.value) * 100} %`
+                        : `${Number(f.value).toLocaleString('fr-FR')} Ar`}
                     </td>
-                    <td className="text-ink-muted">{f.min ?? '—'}</td>
-                    <td className="text-ink-muted">{f.max ?? '—'}</td>
+                    <td className="text-ink-muted">
+                      {f.min != null ? `${Number(f.min).toLocaleString('fr-FR')} Ar` : '—'}
+                    </td>
+                    <td className="text-ink-muted">
+                      {f.max != null ? `${Number(f.max).toLocaleString('fr-FR')} Ar` : '—'}
+                    </td>
                     <td>
                       <button
                         onClick={() => toggleActive(f)}

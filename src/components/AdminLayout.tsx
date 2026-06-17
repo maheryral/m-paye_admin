@@ -28,6 +28,7 @@ import {
   KeyRound,
   GraduationCap,
   Palette,
+  Mail,
   Wallet,
   Bell,
   MessageCircle,
@@ -179,6 +180,11 @@ const NAV: NavItem[] = [
     i18n: 'nav.appTheme',
     icon: Palette,
     perms: ['app-theme:read', 'app-theme:write'],
+  },
+  {
+    to: '/email-settings',
+    i18n: 'nav.emailSettings',
+    icon: Mail,
   },
   { section: 'nav.section.community' },
   {

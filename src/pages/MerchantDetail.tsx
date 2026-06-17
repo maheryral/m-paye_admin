@@ -11,6 +11,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { merchantsAdminApi } from '../services/superAdminApi';
+import { resolveAssetUrl } from '../services/api';
 
 export default function MerchantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -79,7 +80,7 @@ export default function MerchantDetail() {
   if (!m) return <div className="text-sm text-danger-400">Introuvable</div>;
 
   return (
-    <div className="animate-fade-in max-w-5xl">
+    <div className="animate-fade-in w-full">
       <Link
         to="/merchants"
         className="text-sm text-ink-muted hover:text-ink flex items-center gap-1 mb-4"
@@ -188,6 +189,60 @@ export default function MerchantDetail() {
             <div className="text-xs text-ink-muted">{m.user?.telephone}</div>
           </div>
         </div>
+
+        {/* Détails commerciaux + bancaires + dates (tout ce que l'user a soumis) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-bg-border">
+          <Info label="Type d'activité" value={m.businessType} />
+          <Info label="Catégorie" value={m.categorie} />
+          <Info label="N° d'enregistrement (RCS)" value={m.registrationNumber} mono />
+          <Info label="NIF / N° fiscal (TVA)" value={m.vatNumber} mono />
+          <Info
+            label="Taux TVA par défaut"
+            value={
+              m.defaultTaxRate != null ? `${Number(m.defaultTaxRate)} %` : undefined
+            }
+          />
+          <Info
+            label="Soumis le"
+            value={
+              m.submittedAt
+                ? new Date(m.submittedAt).toLocaleString('fr-FR')
+                : undefined
+            }
+          />
+          {m.reviewedAt && (
+            <Info
+              label="Examiné le"
+              value={new Date(m.reviewedAt).toLocaleString('fr-FR')}
+            />
+          )}
+          {m.verifiedAt && (
+            <Info
+              label="Vérifié le"
+              value={new Date(m.verifiedAt).toLocaleString('fr-FR')}
+            />
+          )}
+        </div>
+
+        {/* Informations bancaires */}
+        {(m.bankName ||
+          m.accountNumber ||
+          m.accountHolder ||
+          m.iban ||
+          m.bic) && (
+          <div className="mt-4 pt-4 border-t border-bg-border">
+            <div className="text-xs text-ink-dim mb-2 uppercase tracking-wider font-bold">
+              Informations bancaires
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Info label="Banque" value={m.bankName} />
+              <Info label="Titulaire du compte" value={m.accountHolder} />
+              <Info label="N° de compte" value={m.accountNumber} mono />
+              <Info label="IBAN" value={m.iban} mono />
+              <Info label="BIC / SWIFT" value={m.bic} mono />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Documents & images envoyés pour devenir marchand */}
@@ -231,24 +286,24 @@ export default function MerchantDetail() {
             {hasBranding && (
               <div className="flex flex-wrap gap-4 mb-5">
                 {m.logoUrl && (
-                  <a href={m.logoUrl} target="_blank" rel="noreferrer" className="block">
+                  <a href={resolveAssetUrl(m.logoUrl)} target="_blank" rel="noreferrer" className="block">
                     <div className="text-[10px] uppercase tracking-wider text-ink-dim mb-1">
                       Logo
                     </div>
                     <img
-                      src={m.logoUrl}
+                      src={resolveAssetUrl(m.logoUrl)}
                       alt="Logo"
                       className="w-24 h-24 rounded-xl object-cover border border-bg-border bg-bg-elevated"
                     />
                   </a>
                 )}
                 {m.coverUrl && (
-                  <a href={m.coverUrl} target="_blank" rel="noreferrer" className="block flex-1 min-w-[160px]">
+                  <a href={resolveAssetUrl(m.coverUrl)} target="_blank" rel="noreferrer" className="block flex-1 min-w-[160px]">
                     <div className="text-[10px] uppercase tracking-wider text-ink-dim mb-1">
                       Couverture
                     </div>
                     <img
-                      src={m.coverUrl}
+                      src={resolveAssetUrl(m.coverUrl)}
                       alt="Couverture"
                       className="w-full h-24 rounded-xl object-cover border border-bg-border bg-bg-elevated"
                     />
@@ -263,7 +318,7 @@ export default function MerchantDetail() {
                 {docs.map((d) => (
                   <a
                     key={d.id}
-                    href={d.url}
+                    href={resolveAssetUrl(d.url)}
                     target="_blank"
                     rel="noreferrer"
                     className="card overflow-hidden group"
@@ -271,7 +326,7 @@ export default function MerchantDetail() {
                   >
                     {isImage(d) ? (
                       <img
-                        src={d.url}
+                        src={resolveAssetUrl(d.url)}
                         alt={d.type}
                         className="w-full h-32 object-cover bg-bg-elevated"
                       />
@@ -532,6 +587,27 @@ function Stat({ label, value }: { label: string; value: any }) {
         {label}
       </div>
       <div className="text-lg font-bold">{value}</div>
+    </div>
+  );
+}
+
+function Info({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value?: string | null;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-ink-dim mb-0.5">
+        {label}
+      </div>
+      <div className={`text-sm ${mono ? 'font-mono' : ''} ${value ? '' : 'text-ink-dim'}`}>
+        {value || '—'}
+      </div>
     </div>
   );
 }

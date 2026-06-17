@@ -92,4 +92,21 @@ export const authService = {
       .then((r) => r.data),
 };
 
+/**
+ * Résout une URL d'asset relative renvoyée par l'API (ex `/uploads/...`)
+ * en URL absolue téléchargeable. Laisse passer les URLs absolues (http(s),
+ * data:) inchangées. Renvoie undefined si l'entrée est vide.
+ */
+export const resolveAssetUrl = (
+  relativeOrAbsolute?: string | null,
+): string | undefined => {
+  if (!relativeOrAbsolute) return undefined;
+  if (/^(https?:\/\/|data:)/i.test(relativeOrAbsolute)) return relativeOrAbsolute;
+  const base = API_BASE_URL.replace(/\/$/, '');
+  const cleaned = relativeOrAbsolute.startsWith('/')
+    ? relativeOrAbsolute
+    : `/${relativeOrAbsolute}`;
+  return `${base}${cleaned}`;
+};
+
 export default api;
