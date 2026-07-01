@@ -32,3 +32,4 @@ UPDATE User SET role = 'SUPER_ADMIN' WHERE email = 'votre@email.com';
 npm run build
 npm run preview
 ```
+teste
